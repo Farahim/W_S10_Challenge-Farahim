@@ -1,5 +1,9 @@
-import axios from 'axios';
-import React, {useState} from 'react'
+import React, { useState, useEffect } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
+import { pizzaOrderSubmition, resetState } from '../state/orderSlice'
+import { fetchPizzaHx } from '../state/pizzaSlice'
+import { setSizeFilter } from '../state/filterSlice'
+
 
 const initialFormState = { // suggested
   fullName: '',
@@ -11,90 +15,174 @@ const initialFormState = { // suggested
   '5': false,
 }
 
-let postUrl = 'http://localhost:9009/api/pizza/order'
-
 export default function PizzaForm() {
-  const [fullName, setFullName] = useState(initialFormState.fullName);
-  const [size, setSize] = useState(initialFormState.size);
-  const [toppings, setToppings] = useState([]);
-  const [success, setSuccess] = useState(false);
-  const [failure, setFailure] = useState(false);
-  const [message, setMessage] = useState('');
 
-  function handleChangeFullName (event) {
-    setFullName(event.target.value);
+  const dispatch = useDispatch()
+  const { loading, error, success } = useSelector((state) => state.pizzaOrder)
+  const filterSize = useSelector((state) => state.sizeFilter)
+  const [formState, setFormState] = useState(initialFormState)
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target
+    setFormState((prev) => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value,
+    }))
   }
 
-  function handleChangeSize(event) {
-    setSize(event.target.value);
-  }
+  const handleFilterClick = (size) => {
+    dispatch(setSizeFilter(size))
+  };
 
-  function handleChangeToppings() {
-    let newToppingsList = [];
-    const toppingsInput = document.getElementById('toppingsInput').querySelectorAll('label');
-    for(let i = 0; i < toppingsInput.length; i++) {
-      let t = toppingsInput[i].querySelector('input');
-      if(t.checked) {
-        newToppingsList.push(t.name);
-      }
-    }
-
-    setToppings(newToppingsList);
-  }
-
-  function submitOrder(event) {
-    event.preventDefault();
-    setSuccess(true);
-    setMessage('Order in progress...');
-    let orderObj = {
-      fullName: fullName,
-      size: size,
-      toppings: toppings
-    };
-    axios
-        .post(postUrl, orderObj)
-        .then((res) => {
-          setSuccess(true);
-          setFailure(false);
-          setMessage(res.data.message);
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    const { fullName, size, ...toppingState } = formState
+    const toppings = Object.keys(toppingState).filter(
+        (key) => toppingState[key]
+    )
+    dispatch(pizzaOrderSubmition({ fullName, size, toppings }))
+        .then(() => {
+          dispatch(fetchPizzaHx())
         })
-        .catch((err) => {
-          setSuccess(false);
-          setFailure(true);
-          setMessage(err.response.data.message)
-        });
-    setFullName('');
-    document.getElementById('fullName').value='';
-    setToppings([]);
-    const toppingsInput = document.getElementById('toppingsInput').querySelectorAll('label');
-    for(let i = 0; i < toppingsInput.length; i++) {
-      let t = toppingsInput[i].querySelector('input');
-      t.checked = false;
-    }
-    setSize('');
-    document.getElementById('size').value = '';
-
+        .catch((error) => console.error('Order submission failed:', error))
   }
+
+  useEffect(() => {
+    if (success) {
+      setFormState(initialFormState)
+      dispatch(resetState())
+    }
+  }, [success, dispatch])
+
+  useEffect(() => {
+    console.log('Error state changed:', error);
+  }, [error])
+
 
   return (
-      <form>
+      <div>
         <h2>Pizza Form</h2>
-        {success && <div className='pending'>{message}</div>}
-        {failure && <div className='failure'>Order failed: {message}</div>}
-
-        <div className="input-group">
-          <div>
-            <label htmlFor="fullName">Full Name</label><br />
-            <input
-                data-testid="fullNameInput"
-                id="fullName"
-                name="fullName"
-                placeholder="Type full name"
-                type="text"
-                onChange={handleChangeFullName}
-            />
+        {loading && <div className='pending'>Order in progress</div>}
+        {error && <div className='failure'>Order failed: {error.message}</div>}
+        {success && <div className='success'>Order submitted successfully!</div>}
+        <form onSubmit={handleSubmit}>
+          <div className="input-group">
+            <div>
+              <label htmlFor="fullName">Full Name</label>
+              <br />
+              <input
+                  data-testid="fullNameInput"
+                  id="fullName"
+                  name="fullName"
+                  placeholder="Type full name"
+                  type="text"
+                  value={formState.fullName}
+                  onChange={handleChange}
+                  required=''
+              />
+            </div>
           </div>
-        </div>
 
-        <div className="input-group">
-          <div>
+          <div className="input-group">
+            <div>
+              <label htmlFor="size">Size</label>
+              <br />
+              <select
+                  data-testid="sizeSelect"
+                  id="size"
+                  name="size"
+                  value={formState.size}
+                  onChange={handleChange}
+              >
+                <option value="">----Choose size----</option>
+                <option value="S">Small</option>
+                <option value="M">Medium</option>
+                <option value="L">Large</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="input-group">
+            <label>
+              <input
+                  data-testid="checkPepperoni"
+                  name="1"
+                  type="checkbox"
+                  checked={formState['1']}
+                  onChange={handleChange}
+              />
+              Pepperoni
+              <br />
+            </label>
+            <label>
+              <input
+                  data-testid="checkGreenpeppers"
+                  name="2"
+                  type="checkbox"
+                  checked={formState['2']}
+                  onChange={handleChange}
+              />
+              Green Peppers
+              <br />
+            </label>
+            <label>
+              <input
+                  data-testid="checkPineapple"
+                  name="3"
+                  type="checkbox"
+                  checked={formState['3']}
+                  onChange={handleChange}
+              />
+              Pineapple
+              <br />
+            </label>
+            <label>
+              <input
+                  data-testid="checkMushrooms"
+                  name="4"
+                  type="checkbox"
+                  checked={formState['4']}
+                  onChange={handleChange}
+              />
+              Mushrooms
+              <br />
+            </label>
+            <label>
+              <input
+                  data-testid="checkHam"
+                  name="5"
+                  type="checkbox"
+                  checked={formState['5']}
+                  onChange={handleChange}
+              />
+              Ham
+              <br />
+            </label>
+          </div>
+          <input
+              data-testid="submit"
+              type="submit"
+              value='Submit'
+              disabled={loading}
+          />
+        </form>
+        <div id='sizeFilters' style={{ display: 'none' }}>
+          Filter by size:
+          {['All', 'S', 'M', 'L'].map((size) => {
+            const className = `button-filter${size === filterSize ? ' active' : ''
+            }`
+            return (
+                <button
+                    className={className}
+                    key={size}
+                    onClick={() => handleFilterClick(size)}
+                    data-testid={`filterBtn${size}`}
+                >
+                  {size}
+                </button>
+            )
+          })}
+        </div>
+      </div>
+  );
+}

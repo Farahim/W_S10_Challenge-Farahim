@@ -39,7 +39,7 @@ describe('Pizza App', () => {
     btn_m = screen.getByTestId('filterBtnM')
     btn_l = screen.getByTestId('filterBtnL')
 
-    //await waitFor(() => screen.getByText('Sigourney Weaver ordered', queryOptions), waitForOptions)
+    await waitFor(() => screen.getByText('Sigourney Weaver ordered', queryOptions), waitForOptions)
     expect(screen.getAllByText('ordered a size', queryOptions)).toHaveLength(1)
   })
   test('[1] Existing "Sigourney Weaver" order from the server renders correctly', async () => {
